@@ -1,6 +1,16 @@
 export interface Country {
   code: string;
   name: string;
+  id?: string;
+}
+
+export type CatalogStatus = 'idle' | 'loading' | 'success' | 'error';
+
+export interface CountryListResponse {
+  countries: Country[];
+  total: number;
+  retrievedAt: string;
+  cached?: boolean;
 }
 
 export type ErrorCode =

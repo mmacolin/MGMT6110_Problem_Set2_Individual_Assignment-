@@ -6,7 +6,8 @@
 const TEST_COUNTRY = 'SG';
 const TEST_YEAR = 2023;
 const TEST_INDICATOR = 'NY.GDP.PCAP.CD';
-const TIMEOUT_MS = 6000;
+const TIMEOUT_MS = 10000;
+const USER_AGENT = 'CountryLens/1.0 (https://countrylens.app; educational)';
 
 function sendResponse(res, statusCode, body) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -37,7 +38,10 @@ export default async function handler(req, res) {
   try {
     const response = await fetch(url, {
       signal: controller.signal,
-      headers: { Accept: 'application/json' },
+      headers: {
+        'User-Agent': USER_AGENT,
+        Accept: 'application/json',
+      },
     });
 
     upstreamStatus = response.status;

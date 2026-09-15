@@ -1,12 +1,11 @@
-import { Country } from '../types';
+/**
+ * CountryLens - Core Constants & Formatters
+ * Countries are loaded dynamically from /api/country-list (World Bank catalogue).
+ */
 
-export const COUNTRIES: Country[] = [
-  { code: 'KH', name: 'Cambodia' },
-  { code: 'SG', name: 'Singapore' },
-  { code: 'MY', name: 'Malaysia' },
-  { code: 'VN', name: 'Vietnam' },
-  { code: 'ID', name: 'Indonesia' },
-];
+export const DEFAULT_COUNTRY_A = 'KH'; // Cambodia
+export const DEFAULT_COUNTRY_B = 'SG'; // Singapore
+export const DEFAULT_YEAR = 2023;
 
 export const YEARS: number[] = [2020, 2021, 2022, 2023, 2024];
 

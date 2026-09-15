@@ -3,23 +3,19 @@
  * Proxies World Bank indicator queries for GDP per capita (current US$).
  * 
  * Query parameters:
- *  - countryA: Country code (KH, SG, MY, VN, ID)
- *  - countryB: Country code (KH, SG, MY, VN, ID)
+ *  - countryA: Country/economy code (from supported catalogue, e.g. KH, SG)
+ *  - countryB: Country/economy code (from supported catalogue, e.g. MY, VN)
  *  - year: Observation year (2020-2024)
+ *  - simulate (dev only): missing-a | missing-both | refusal | unreachable
  */
 
-const ALLOWED_COUNTRIES = {
-  KH: 'Cambodia',
-  SG: 'Singapore',
-  MY: 'Malaysia',
-  VN: 'Vietnam',
-  ID: 'Indonesia',
-};
+import { getSupportedCatalog } from './country-catalog.js';
 
 const ALLOWED_YEARS = [2020, 2021, 2022, 2023, 2024];
 const INDICATOR_CODE = 'NY.GDP.PCAP.CD';
 const INDICATOR_NAME = 'GDP per capita (current US$)';
-const UPSTREAM_TIMEOUT_MS = 8000;
+const UPSTREAM_TIMEOUT_MS = 10000;
+const USER_AGENT = 'CountryLens/1.0 (https://countrylens.app; educational)';
 
 function formatCurrencyUSD(val) {
   if (val === null || val === undefined || isNaN(val)) {
@@ -49,7 +45,7 @@ function sendResponse(res, statusCode, body, isCacheable = false) {
   res.end(JSON.stringify(body));
 }
 
-async function fetchCountryData(countryCode, year) {
+async function fetchCountryData(countryCode, year, fallbackName) {
   const url = `https://api.worldbank.org/v2/country/${encodeURIComponent(countryCode)}/indicator/${INDICATOR_CODE}?date=${encodeURIComponent(year)}&format=json`;
 
   const controller = new AbortController();
@@ -60,6 +56,7 @@ async function fetchCountryData(countryCode, year) {
     response = await fetch(url, {
       signal: controller.signal,
       headers: {
+        'User-Agent': USER_AGENT,
         Accept: 'application/json',
       },
     });
@@ -91,7 +88,7 @@ async function fetchCountryData(countryCode, year) {
   let data;
   try {
     data = await response.json();
-  } catch (err) {
+  } catch {
     const error = new Error('Failed to parse World Bank API response as valid JSON.');
     error.code = 'MALFORMED_RESPONSE';
     error.status = 502;
@@ -120,7 +117,7 @@ async function fetchCountryData(countryCode, year) {
   if (records === null || !Array.isArray(records) || records.length === 0) {
     return {
       code: countryCode,
-      name: ALLOWED_COUNTRIES[countryCode],
+      name: fallbackName || countryCode,
       indicator: INDICATOR_CODE,
       indicatorName: INDICATOR_NAME,
       year: Number(year),
@@ -134,7 +131,7 @@ async function fetchCountryData(countryCode, year) {
   if (!record) {
     return {
       code: countryCode,
-      name: ALLOWED_COUNTRIES[countryCode],
+      name: fallbackName || countryCode,
       indicator: INDICATOR_CODE,
       indicatorName: INDICATOR_NAME,
       year: Number(year),
@@ -170,9 +167,11 @@ async function fetchCountryData(countryCode, year) {
     }
   }
 
+  const countryName = record.country?.value || fallbackName || countryCode;
+
   return {
     code: countryCode,
-    name: ALLOWED_COUNTRIES[countryCode],
+    name: countryName,
     indicator: INDICATOR_CODE,
     indicatorName: record.indicator?.value || INDICATOR_NAME,
     year: Number(year),
@@ -182,7 +181,6 @@ async function fetchCountryData(countryCode, year) {
 }
 
 export default async function handler(req, res) {
-  // Support both GET requests
   if (req.method && req.method !== 'GET') {
     return sendResponse(
       res,
@@ -197,20 +195,23 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Parse query params (handles both Vercel req.query and Node req.url)
+    // Parse query params (supports Vercel req.query and Node req.url)
     let countryA = '';
     let countryB = '';
     let year = '';
+    let simulate = '';
 
     if (req.query) {
       countryA = req.query.countryA;
       countryB = req.query.countryB;
       year = req.query.year;
+      simulate = req.query.simulate || '';
     } else if (req.url) {
       const url = new URL(req.url, `http://${req.headers?.host || 'localhost'}`);
       countryA = url.searchParams.get('countryA') || '';
       countryB = url.searchParams.get('countryB') || '';
       year = url.searchParams.get('year') || '';
+      simulate = url.searchParams.get('simulate') || '';
     }
 
     countryA = (countryA || '').trim().toUpperCase();
@@ -239,28 +240,42 @@ export default async function handler(req, res) {
         {
           error: 'Identical countries selected',
           code: 'INVALID_REQUEST',
-          message: 'Country A and Country B must be two different countries.',
+          message: 'Country A and Country B must be two different countries/economies.',
         },
         false
       );
     }
 
-    // 3. Validation: Allowed countries
-    if (!ALLOWED_COUNTRIES[countryA] || !ALLOWED_COUNTRIES[countryB]) {
+    // 3. Validation: Disallow Thailand
+    if (countryA === 'TH' || countryB === 'TH') {
       return sendResponse(
         res,
         400,
         {
-          error: 'Invalid country code',
-          code: 'INVALID_REQUEST',
-          message: `Country codes must be chosen from: ${Object.keys(ALLOWED_COUNTRIES).join(', ')}.`,
-          allowedCountries: Object.keys(ALLOWED_COUNTRIES),
+          error: 'Excluded country',
+          code: 'EXCLUDED_COUNTRY',
+          message: 'Thailand is excluded from this comparison tool.',
         },
         false
       );
     }
 
-    // 4. Validation: Allowed years
+    // 4. Validation: Format (2 uppercase alphabetic characters)
+    const iso2Regex = /^[A-Z]{2}$/;
+    if (!iso2Regex.test(countryA) || !iso2Regex.test(countryB)) {
+      return sendResponse(
+        res,
+        400,
+        {
+          error: 'Invalid country code format',
+          code: 'INVALID_REQUEST',
+          message: 'Country codes must be 2-letter ISO codes.',
+        },
+        false
+      );
+    }
+
+    // 5. Validation: Allowed years
     if (!ALLOWED_YEARS.includes(numYear)) {
       return sendResponse(
         res,
@@ -275,10 +290,135 @@ export default async function handler(req, res) {
       );
     }
 
+    // 6. Validation against World Bank supported catalogue
+    const catalog = await getSupportedCatalog();
+    const nameA = catalog.codeToNameMap[countryA];
+    const nameB = catalog.codeToNameMap[countryB];
+
+    if (!nameA) {
+      return sendResponse(
+        res,
+        400,
+        {
+          error: `Unknown country/economy code: ${countryA}`,
+          code: 'INVALID_REQUEST',
+          message: `Country code ${countryA} is not an individual country/economy in the World Bank catalogue.`,
+        },
+        false
+      );
+    }
+
+    if (!nameB) {
+      return sendResponse(
+        res,
+        400,
+        {
+          error: `Unknown country/economy code: ${countryB}`,
+          code: 'INVALID_REQUEST',
+          message: `Country code ${countryB} is not an individual country/economy in the World Bank catalogue.`,
+        },
+        false
+      );
+    }
+
+    // Controlled Development-Only Simulations (strictly ignored in production)
+    const isDev = process.env.NODE_ENV !== 'production';
+    if (isDev && simulate) {
+      if (simulate === 'refusal') {
+        return sendResponse(
+          res,
+          502,
+          {
+            error: 'Simulated World Bank refusal response',
+            code: 'PROVIDER_REFUSED',
+            simulation: true,
+          },
+          false
+        );
+      }
+      if (simulate === 'unreachable') {
+        return sendResponse(
+          res,
+          504,
+          {
+            error: 'Simulated World Bank provider timeout/unreachable',
+            code: 'PROVIDER_UNREACHABLE',
+            simulation: true,
+          },
+          false
+        );
+      }
+      if (simulate === 'missing-a') {
+        const realB = await fetchCountryData(countryB, numYear, nameB);
+        return sendResponse(
+          res,
+          200,
+          {
+            year: numYear,
+            countryA: {
+              code: countryA,
+              name: nameA,
+              indicator: INDICATOR_CODE,
+              indicatorName: INDICATOR_NAME,
+              year: numYear,
+              value: null,
+              formatted: null,
+            },
+            countryB: realB,
+            unit: 'current US$',
+            indicator: INDICATOR_CODE,
+            indicatorName: INDICATOR_NAME,
+            source: 'World Bank World Development Indicators',
+            sourceUrl: 'https://data.worldbank.org/indicator/NY.GDP.PCAP.CD',
+            retrievedAt: new Date().toISOString(),
+            emptyData: false,
+            simulation: true,
+          },
+          false
+        );
+      }
+      if (simulate === 'missing-both') {
+        return sendResponse(
+          res,
+          200,
+          {
+            year: numYear,
+            countryA: {
+              code: countryA,
+              name: nameA,
+              indicator: INDICATOR_CODE,
+              indicatorName: INDICATOR_NAME,
+              year: numYear,
+              value: null,
+              formatted: null,
+            },
+            countryB: {
+              code: countryB,
+              name: nameB,
+              indicator: INDICATOR_CODE,
+              indicatorName: INDICATOR_NAME,
+              year: numYear,
+              value: null,
+              formatted: null,
+            },
+            unit: 'current US$',
+            indicator: INDICATOR_CODE,
+            indicatorName: INDICATOR_NAME,
+            source: 'World Bank World Development Indicators',
+            sourceUrl: 'https://data.worldbank.org/indicator/NY.GDP.PCAP.CD',
+            retrievedAt: new Date().toISOString(),
+            emptyData: true,
+            simulation: true,
+          },
+          false
+        );
+      }
+    }
+
     // Fetch both countries in parallel from World Bank upstream
     const [dataA, dataB] = await Promise.all([
-      fetchCountryData(countryA, numYear),
-      fetchCountryData(countryB, numYear),
+      fetchCountryData(countryA, numYear, nameA),
+      fetchCountryData(countryB, numYear, nameB),
     ]);
 
     // Check if both countries returned empty/null data

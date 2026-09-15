@@ -12,6 +12,10 @@ const apiDevPlugin = (): Plugin => ({
       }
       try {
         const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+        if (url.pathname === '/api/country-list') {
+          const { default: handler } = await import('./api/country-list.js');
+          return await handler(req, res);
+        }
         if (url.pathname === '/api/countries') {
           const { default: handler } = await import('./api/countries.js');
           return await handler(req, res);

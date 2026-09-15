@@ -1,10 +1,19 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { COUNTRIES, YEARS, formatCurrencyUSD } from './data/countries';
 import {
+  DEFAULT_COUNTRY_A,
+  DEFAULT_COUNTRY_B,
+  DEFAULT_YEAR,
+  YEARS,
+  formatCurrencyUSD,
+} from './data/countries';
+import {
+  Country,
+  CatalogStatus,
   ComparisonStatus,
   ComparisonResult,
   StructuredError,
   ApiComparisonResponse,
+  CountryListResponse,
 } from './types';
 import { Header } from './components/Header';
 import { ComparisonForm } from './components/ComparisonForm';
@@ -12,10 +21,15 @@ import { ResultsView } from './components/ResultsView';
 import { SupportingInfo } from './components/SupportingInfo';
 
 export default function App() {
+  // Country catalogue state loaded from /api/country-list
+  const [countries, setCountries] = useState<Country[]>([]);
+  const [catalogStatus, setCatalogStatus] = useState<CatalogStatus>('loading');
+  const [catalogError, setCatalogError] = useState<string | null>(null);
+
   // Form selection state: Defaults Cambodia (KH), Singapore (SG), 2023
-  const [countryA, setCountryA] = useState<string>('KH');
-  const [countryB, setCountryB] = useState<string>('SG');
-  const [year, setYear] = useState<number>(2023);
+  const [countryA, setCountryA] = useState<string>(DEFAULT_COUNTRY_A);
+  const [countryB, setCountryB] = useState<string>(DEFAULT_COUNTRY_B);
+  const [year, setYear] = useState<number>(DEFAULT_YEAR);
 
   // Async comparison state
   const [comparisonStatus, setComparisonStatus] = useState<ComparisonStatus>('initial');
@@ -27,6 +41,39 @@ export default function App() {
   const requestSeqRef = useRef<number>(0);
 
   const isSameCountry = countryA === countryB;
+
+  // Load World Bank country catalogue
+  const fetchCatalog = useCallback(async () => {
+    setCatalogStatus('loading');
+    setCatalogError(null);
+
+    try {
+      const response = await fetch('/api/country-list', {
+        headers: { Accept: 'application/json' },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Catalogue service returned HTTP ${response.status}`);
+      }
+
+      const data: CountryListResponse = await response.json();
+      if (!Array.isArray(data.countries) || data.countries.length === 0) {
+        throw new Error('World Bank catalogue did not return any country records.');
+      }
+
+      setCountries(data.countries);
+      setCatalogStatus('success');
+    } catch (err: unknown) {
+      setCatalogStatus('error');
+      setCatalogError(
+        err instanceof Error ? err.message : 'Failed to retrieve World Bank country catalogue.'
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCatalog();
+  }, [fetchCatalog]);
 
   // Reset results when inputs change
   const resetResults = useCallback(() => {
@@ -131,6 +178,7 @@ export default function App() {
             code: 'PROVIDER_REFUSED',
             message:
               errPayload.message ||
+              errPayload.error ||
               'The World Bank API rejected or was unable to process this request. Please try again later.',
           });
         } else if (code === 'PROVIDER_UNREACHABLE' || response.status === 504) {
@@ -138,6 +186,7 @@ export default function App() {
             code: 'PROVIDER_UNREACHABLE',
             message:
               errPayload.message ||
+              errPayload.error ||
               'Could not reach the World Bank API. Please check your connection or retry shortly.',
           });
         } else if (code === 'MALFORMED_RESPONSE') {
@@ -145,13 +194,14 @@ export default function App() {
             code: 'MALFORMED_RESPONSE',
             message:
               errPayload.message ||
-              'The World Bank returned an unexpected data structure. Our team has been notified.',
+              'The World Bank returned an unexpected data structure. Please retry.',
           });
         } else if (code === 'INVALID_REQUEST' || response.status === 400) {
           setStructuredError({
             code: 'INVALID_REQUEST',
             message:
               errPayload.message ||
+              errPayload.error ||
               'Invalid selection: Country A and Country B must be different, and the year must be between 2020 and 2024.',
           });
         } else {
@@ -166,18 +216,7 @@ export default function App() {
 
       const comparisonData = data as ApiComparisonResponse;
 
-      // Handle completely empty data scenario
-      if (comparisonData.emptyData) {
-        setStructuredError({
-          code: 'EMPTY_DATA',
-          message:
-            'No GDP per capita data is available from the World Bank for this comparison. Please try another observation year.',
-        });
-        setComparisonStatus('error');
-        return;
-      }
-
-      // Calculate comparative insights when both countries have values
+      // Calculate comparative insights when both countries have positive values
       const valA = comparisonData.countryA.value;
       const valB = comparisonData.countryB.value;
       const nameA = comparisonData.countryA.name;
@@ -239,7 +278,10 @@ export default function App() {
         <main className="space-y-6">
           {/* Comparison Form Panel */}
           <ComparisonForm
-            countries={COUNTRIES}
+            countries={countries}
+            catalogStatus={catalogStatus}
+            catalogError={catalogError}
+            onRetryCatalog={fetchCatalog}
             years={YEARS}
             countryA={countryA}
             countryB={countryB}
@@ -257,8 +299,6 @@ export default function App() {
             status={comparisonStatus}
             result={comparisonResult}
             error={structuredError}
-            year={year}
-            isSameCountry={isSameCountry}
             onRetry={handleCompare}
           />
 
