@@ -1,7 +1,14 @@
 import React from 'react';
 import { Country, CatalogStatus } from '../types';
 import { CountrySelect } from './CountrySelect';
-import { ArrowLeftRight, AlertCircle, RefreshCw } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  AlertCircle,
+  RefreshCw,
+  Calendar,
+  ChevronDown,
+  TrendingUp,
+} from 'lucide-react';
 
 interface ComparisonFormProps {
   countries: Country[];
@@ -43,7 +50,7 @@ export function ComparisonForm({
   return (
     <section
       id="comparison-form-section"
-      className="bg-white p-5 sm:p-6 rounded-lg border border-slate-200 shadow-sm"
+      className="bg-white p-5 sm:p-7 rounded-xl border border-slate-200 shadow-sm"
       aria-label="Country and year comparison form"
     >
       {/* Catalogue Loading Banner */}
@@ -90,10 +97,12 @@ export function ComparisonForm({
             onSubmit();
           }
         }}
+        className="space-y-5"
       >
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-          {/* Country A (5 cols on md) */}
-          <div id="country-a-container" className="md:col-span-4">
+        {/* Tier 1: Two Countries & Swap Button */}
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-3.5 items-end">
+          {/* Country A */}
+          <div id="country-a-container" className="w-full">
             <CountrySelect
               id="country-a-select"
               label="Country/economy A"
@@ -107,10 +116,10 @@ export function ComparisonForm({
             />
           </div>
 
-          {/* Swap Button (1 col on md or flex center) */}
+          {/* Swap Button */}
           <div
             id="swap-container"
-            className="md:col-span-1 flex items-center justify-center pb-1.5"
+            className="flex items-center justify-center pb-1"
           >
             <button
               type="button"
@@ -119,15 +128,15 @@ export function ComparisonForm({
               disabled={isLoading || isCatalogLoading}
               title="Swap Country A and Country B"
               aria-label="Swap Country A and Country B"
-              className="min-h-[44px] w-full md:w-[44px] flex items-center justify-center gap-1 text-xs text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-md transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+              className="min-h-[44px] w-full md:w-[44px] flex items-center justify-center gap-1.5 text-xs text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
             >
               <ArrowLeftRight className="w-4 h-4 text-slate-600" />
-              <span className="md:hidden text-xs font-medium">Swap countries</span>
+              <span className="md:hidden text-xs font-semibold">Swap countries</span>
             </button>
           </div>
 
-          {/* Country B (4 cols on md) */}
-          <div id="country-b-container" className="md:col-span-4">
+          {/* Country B */}
+          <div id="country-b-container" className="w-full">
             <CountrySelect
               id="country-b-select"
               label="Country/economy B"
@@ -140,14 +149,24 @@ export function ComparisonForm({
               onChange={onCountryBChange}
             />
           </div>
+        </div>
 
-          {/* Year (1.5 cols on md) */}
-          <div id="year-container" className="md:col-span-1.5">
+        {/* Tier 2: Year Box & Compare Button in Black Box */}
+        <div
+          id="action-bar-container"
+          className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-end gap-3.5 sm:gap-4"
+        >
+          {/* Highly Visible Year Box */}
+          <div id="year-container" className="w-full sm:w-56 md:w-64 shrink-0">
             <label
               htmlFor="year-select"
-              className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5"
+              className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1.5 flex items-center gap-1.5"
             >
-              Year
+              <Calendar className="w-3.5 h-3.5 text-slate-600" />
+              <span>Observation Year</span>
+              <span className="text-[10px] font-normal text-slate-600 normal-case ml-auto">
+                1950 – 2025
+              </span>
             </label>
             <div className="relative">
               <select
@@ -155,56 +174,44 @@ export function ComparisonForm({
                 value={year}
                 disabled={isLoading || isCatalogLoading}
                 onChange={(e) => onYearChange(Number(e.target.value))}
-                className="w-full min-h-[44px] bg-white border border-slate-300 rounded-md px-3 py-2 text-sm text-slate-900 shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-700 focus-visible:ring-offset-1 appearance-none pr-8 cursor-pointer disabled:opacity-50"
+                className="w-full min-h-[48px] bg-white border-2 border-slate-300 hover:border-slate-500 focus:border-slate-900 rounded-lg px-3.5 py-2.5 text-base font-bold text-slate-900 shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-1 appearance-none pr-10 cursor-pointer disabled:opacity-50 transition-colors"
               >
                 {years.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
+                  <option key={y} value={y} className="font-normal text-slate-900 py-1">
+                    {y} {y === 2025 ? '(Latest)' : ''}
                   </option>
                 ))}
               </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                </svg>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-700">
+                <ChevronDown className="w-4 h-4 stroke-[2.5]" />
               </div>
             </div>
           </div>
 
-          {/* Action Button (1.5 cols on md) */}
-          <div id="submit-container" className="md:col-span-1.5">
+          {/* Highly Visible Compare in Black Box */}
+          <div id="submit-container" className="flex-1 w-full">
+            <label
+              className="hidden sm:block text-xs font-bold uppercase tracking-wider text-transparent mb-1.5 select-none"
+              aria-hidden="true"
+            >
+              Action
+            </label>
             <button
               type="submit"
               id="compare-button"
               disabled={isSameCountry || isLoading || isCatalogLoading || isCatalogError}
-              className="w-full min-h-[44px] px-4 rounded-md font-semibold text-sm text-white bg-slate-900 hover:bg-slate-800 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-slate-900 flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full min-h-[48px] px-6 py-2.5 rounded-lg font-bold text-base tracking-wide text-white bg-slate-950 hover:bg-black active:bg-slate-900 border border-slate-900 shadow-md hover:shadow-lg transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-slate-950 flex items-center justify-center gap-2.5 cursor-pointer group"
             >
               {isLoading ? (
                 <>
-                  <svg
-                    className="animate-spin h-4 w-4 text-white shrink-0"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  <span>Loading…</span>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin shrink-0" />
+                  <span>Fetching World Bank data…</span>
                 </>
               ) : (
-                'Compare'
+                <>
+                  <TrendingUp className="w-5 h-5 text-white shrink-0 group-hover:scale-110 transition-transform" />
+                  <span>Compare GDP Per Capita</span>
+                </>
               )}
             </button>
           </div>
@@ -214,7 +221,7 @@ export function ComparisonForm({
         {isSameCountry && (
           <div
             id="validation-same-country-alert"
-            className="mt-3.5 pt-3 border-t border-slate-100 flex items-center gap-2 text-sm text-amber-800"
+            className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-2 text-sm text-amber-800"
             role="alert"
           >
             <svg

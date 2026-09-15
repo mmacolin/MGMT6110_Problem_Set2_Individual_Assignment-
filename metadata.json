@@ -2,5 +2,7 @@
   "name": "CountryLens",
   "description": "Compare GDP per capita across individual countries and economies with live World Bank data.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

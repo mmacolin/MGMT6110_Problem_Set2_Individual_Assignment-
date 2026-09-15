@@ -7,7 +7,11 @@ export const DEFAULT_COUNTRY_A = 'KH'; // Cambodia
 export const DEFAULT_COUNTRY_B = 'SG'; // Singapore
 export const DEFAULT_YEAR = 2023;
 
-export const YEARS: number[] = [2020, 2021, 2022, 2023, 2024];
+// Historical range from 2025 down to 1950 (World Bank indicator NY.GDP.PCAP.CD coverage)
+export const YEARS: number[] = Array.from(
+  { length: 2025 - 1950 + 1 },
+  (_, i) => 2025 - i
+);
 
 export function formatCurrencyUSD(val: number | null | undefined): string | null {
   if (val === null || val === undefined || isNaN(val)) {

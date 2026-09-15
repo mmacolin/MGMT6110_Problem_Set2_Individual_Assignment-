@@ -38,7 +38,7 @@ export function ResultsView({ status, result, error, onRetry }: ResultsViewProps
           </div>
           <p className="font-semibold text-slate-800 text-base mb-1">Ready to compare</p>
           <p className="text-xs text-slate-500 max-w-md">
-            Select two countries or economies and an observation year (2020–2024), then click
+            Select two countries or economies and an observation year (1950–2025), then click
             “Compare” to fetch live GDP per capita data from the World Bank.
           </p>
         </div>

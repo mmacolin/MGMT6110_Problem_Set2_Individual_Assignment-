@@ -11,7 +11,12 @@
 
 import { getSupportedCatalog } from './country-catalog.js';
 
-const ALLOWED_YEARS = [2020, 2021, 2022, 2023, 2024];
+const MIN_YEAR = 1950;
+const MAX_YEAR = 2025;
+const ALLOWED_YEARS = Array.from(
+  { length: MAX_YEAR - MIN_YEAR + 1 },
+  (_, i) => MAX_YEAR - i
+);
 const INDICATOR_CODE = 'NY.GDP.PCAP.CD';
 const INDICATOR_NAME = 'GDP per capita (current US$)';
 const UPSTREAM_TIMEOUT_MS = 10000;
@@ -283,8 +288,9 @@ export default async function handler(req, res) {
         {
           error: 'Invalid observation year',
           code: 'INVALID_REQUEST',
-          message: `Year must be one of: ${ALLOWED_YEARS.join(', ')}.`,
-          allowedYears: ALLOWED_YEARS,
+          message: `Year must be between ${MIN_YEAR} and ${MAX_YEAR}.`,
+          minYear: MIN_YEAR,
+          maxYear: MAX_YEAR,
         },
         false
       );
