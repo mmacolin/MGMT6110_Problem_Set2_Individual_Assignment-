@@ -1,0 +1,6 @@
+{
+  "name": "CountryLens",
+  "description": "Compare GDP per capita across Southeast Asian countries.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
